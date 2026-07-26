@@ -1,180 +1,58 @@
 """
 Feature Builder
 
-Creates machine learning features from the
-preprocessed invoice dataset.
+Runs all feature engineering modules
+and creates the final featured dataset.
 """
-
-import os
-import joblib
 import pandas as pd
-import numpy as np
 
-# ----------------------------------------
-# File Paths
-# ----------------------------------------
+from src.feature_engineering.financial_features import (create_financial_features)
 
-INPUT_FILE = "data/processed/preprocessed_dataset.csv"
+from src.feature_engineering.temporal_features import (create_temporal_features)
 
-OUTPUT_FILE = "data/processed/ml_dataset.csv"
+from src.feature_engineering.risk_features import (create_risk_features)
 
-FEATURE_FILE = "models/feature_columns.pkl"
+#
+# Main Function
+#
+'''
+Explanation
+Instead of calling every feature engineering function manually, this function executes all three feature engineering modules one after another in a fixed order.
 
-os.makedirs("models", exist_ok=True)
+This creates a single pipeline where the input is the original fraud dataset and the output is a fully engineered dataset ready for preprocessing and model training.
+'''
 
-# ----------------------------------------
-# Load Dataset
-# ----------------------------------------
+def build_features(df):
 
-def load_dataset():
+    print("\nStarting Feature Engineering Pipeline : \n")
 
-    print("\nLoading preprocessed dataset...")
+    df = create_financial_features(df)
 
-    df = pd.read_csv(INPUT_FILE)
+    df = create_temporal_features(df)
 
-    print(f"Rows : {len(df)}")
+    df = create_risk_features(df)
 
-    print(f"Columns : {len(df.columns)}")
-
-    return df
-
-
-# ----------------------------------------
-# Invoice Age
-# ----------------------------------------
-
-def create_invoice_age(df):
-
-    print("\nCreating Invoice Age...")
-
-    df["invoice_date"] = pd.to_datetime(df["invoice_date"])
-
-    today = pd.Timestamp.today()
-
-    df["invoice_age"] = (
-
-        today - df["invoice_date"]
-
-    ).dt.days
-
-    return df
-
-
-# ----------------------------------------
-# Payment Window
-# ----------------------------------------
-
-def create_payment_window(df):
-
-    print("Creating Payment Window...")
-
-    df["due_date"] = pd.to_datetime(df["due_date"])
-
-    df["payment_window"] = (
-
-        df["due_date"] - df["invoice_date"]
-
-    ).dt.days
-
-    return df
-
-
-# ----------------------------------------
-# Tax Ratio
-# ----------------------------------------
-
-def create_tax_ratio(df):
-
-    print("Creating Tax Ratio...")
-
-    df["tax_ratio"] = (
-
-        df["tax_amount"]
-
-        /
-
-        df["invoice_amount"]
-
-    ).round(4)
-
-    return df
-
-
-# ----------------------------------------
-# Discount Ratio
-# ----------------------------------------
-
-def create_discount_ratio(df):
-
-    print("Creating Discount Ratio...")
-
-    df["discount_ratio"] = (
-
-        df["discount_amount"]
-
-        /
-
-        df["invoice_amount"]
-
-    ).round(4)
-
-    return df
-
-
-# ----------------------------------------
-# Effective GST
-# ----------------------------------------
-
-def create_effective_gst(df):
-
-    print("Creating Effective GST...")
-
-    df["effective_gst"] = (
-
-        df["tax_amount"]
-
-        /
-
-        df["invoice_amount"]
-
-        *
-
-        100
-
-    ).round(2)
-
-    return df
-
-# ----------------------------------------
-# Vendor Amount Ratio
-# ----------------------------------------
-
-def create_vendor_amount_ratio(df):
-
-    print("Creating Vendor Amount Ratio...")
-
-    vendor_avg = df.groupby("vendor_name")["invoice_amount"].transform("mean")
-
-    df["vendor_amount_ratio"] = (
-        df["invoice_amount"] / vendor_avg
-    ).round(3)
+    print("\nFeature Engineering Completed!\n")
 
     return df
 
 if __name__ == "__main__":
 
-    df = load_dataset()
+    df = pd.read_csv(
+        "data/processed/fraud_dataset.csv"
+    )
 
-    df = create_invoice_age(df)
+    df = build_features(df)
 
-    df = create_payment_window(df)
+    output_path = (
+        "data/processed/featured_dataset.csv"
+    )
 
-    df = create_tax_ratio(df)
+    df.to_csv(
+        output_path,
+        index=False
+    )
 
-    df = create_discount_ratio(df)
+    print(f"\nDataset saved to: {output_path}")
 
-    df = create_effective_gst(df)
-
-    df = create_vendor_amount_ratio(df) 
-
-    print(df.head())
+    print("\nFinal Shape:", df.shape)

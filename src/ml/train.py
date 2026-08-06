@@ -29,7 +29,7 @@ Here, fraud is the label, so it is separated from the rest of the dataset.
 def split_features_target(df):
     print("Splitting featues amd Target...")
 
-    X = df.drop(columns=["fraud"])      #removing fraud columns from training
+    X = df.drop(columns=["fraud","risk_score","risk_severity"])      #removing fraud, risk_score and risk_severity columns from training
     y = df["fraud"]                     #keeping only the fraud column for testing
 
     return X,y

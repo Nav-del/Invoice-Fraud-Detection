@@ -41,7 +41,7 @@ def drop_unnecessary_columns(df):
 
     print("Dropping Identifier Columns...")
 
-    columns_to_drop=["invoice_number","purchase_order","vendor_id","invoice_date","due_date"]
+    columns_to_drop=["invoice_number","purchase_order","vendor_id","gst_number","invoice_date","due_date"]
 
     df=df.drop(columns = columns_to_drop)
 
@@ -88,12 +88,23 @@ def encode_categorical_columns(df):
 
     print("Encoding categorical columns...")
 
-    categorical_columns = ["vendor_name","category","country","state","currency","payment_method","payment_status","invoide_description","vendor_risk","risk_severity"]
+    categorical_columns = ["vendor_name","category","country","state","currency","payment_method","payment_status","invoice_description","vendor_risk","risk_severity"]
 
     encoder = OrdinalEncoder(handle_unknown="use_encoded_value",unknown_value=-1)
 
-    df[categorical_columns] = encoder.fit_transform(df[categorical_columns])
+    categorical_columns = [
 
+        col for col in categorical_columns
+
+        if col in df.columns
+
+    ]
+
+    df[categorical_columns] = encoder.fit_transform(
+
+        df[categorical_columns]
+
+    )
     return df, encoder
 
 #
@@ -126,3 +137,64 @@ def save_feature_columns(df, path):
     feature_columns = df.columns.tolist()
 
     joblib.dump(feature_columns, path)
+
+
+#
+# Complete preprocessing pipeline
+#
+
+'''
+This function acts as the main preprocessing pipeline. It calls every preprocessing function in the correct order, saves the encoder and feature list, and finally writes the cleaned dataset as ml_dataset.csv.
+
+Instead of manually calling every function, we create one reusable pipeline. Later, both training and prediction can use the same preprocessing workflow, making the project cleaner and easier to maintain.
+'''
+
+def preprocess_dataset():
+
+    INPUT_FILE = "data/processed/featured_dataset.csv"
+
+    OUTPUT_FILE = "data/processed/ml_dataset.csv"
+
+    ENCODER_PATH = "models/ordinal_encoder.pkl"
+
+    FEATURES_PATH = "models/features_columns.pkl"
+
+    df = load_dataset(INPUT_FILE)
+
+    df = drop_unnecessary_columns(df)
+
+    df = handle_missing_values(df)
+
+    df, encoder = encode_categorical_columns(df)
+
+    save_encoder(encoder, ENCODER_PATH)
+
+    save_feature_columns(df, FEATURES_PATH)
+
+    df.to_csv(
+        OUTPUT_FILE, index=False
+    )
+
+    print("\nPreprocessing Completed Successfully")
+
+    print(f"\nDataset saved to : {OUTPUT_FILE}")
+
+    return df
+
+#TEST
+
+if __name__ == "__main__":
+
+    df = preprocess_dataset()
+
+    print("\n==============================")
+    print("PREPROCESSING SUMMARY")
+    print("==============================")
+
+    print(f"Rows      : {len(df)}")
+    print(f"Columns   : {len(df.columns)}")
+    print(f"Null Values : {df.isnull().sum().sum()}")
+
+    print("==============================\n")
+
+    print(df.head())

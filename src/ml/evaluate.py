@@ -13,7 +13,7 @@ We load the trained model and the processed dataset so we can analyze how the mo
 def load_resources():
     print("Loading Model...")
 
-    model =joblib.load("models/fraud_model.pkl")
+    model =joblib.load("models/best_model.pkl")
 
     df = pd.read_csv("data/processed/ml_dataset.csv")
 
@@ -147,6 +147,66 @@ def create_classification_report(model, X_test, y_test):
     print("Classification Report saved.")
 
 
+
+#
+# ROC Curve
+#
+'''
+The ROC curve evaluates how well the model separates fraudulent from genuine invoices across different probability thresholds. The AUC score summarizes this separation ability, where a value closer to 1 indicates stronger discrimination.
+'''
+def create_roc_curve(model, X_test, y_test):
+
+    print("\nCreating ROC Curve...")
+
+    from sklearn.metrics import roc_curve, roc_auc_score
+
+    probabilities = model.predict_proba(X_test)[:, 1]
+
+    false_positive_rate, true_positive_rate, _ = roc_curve(
+        y_test,
+        probabilities
+    )
+
+    auc_score = roc_auc_score(
+        y_test,
+        probabilities
+    )
+
+    print(f"ROC-AUC Score: {auc_score:.4f}")
+
+    plt.figure(figsize=(8, 6))
+
+    plt.plot(
+        false_positive_rate,
+        true_positive_rate,
+        label=f"Gradient Boosting (AUC = {auc_score:.4f})"
+    )
+
+    plt.plot(
+        [0, 1],
+        [0, 1],
+        linestyle="--"
+    )
+
+    plt.xlabel("False Positive Rate")
+
+    plt.ylabel("True Positive Rate")
+
+    plt.title("ROC Curve - Invoice Fraud Detection")
+
+    plt.legend()
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "reports/roc_curve.png"
+    )
+
+    plt.close()
+
+    print("ROC Curve saved.")
+
+
 if __name__ == "__main__":
 
     model, df = load_resources()
@@ -169,3 +229,5 @@ if __name__ == "__main__":
         X_test,
         y_test
     )
+
+    create_roc_curve(model,X_test,y_test)

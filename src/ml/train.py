@@ -1,131 +1,257 @@
+"""
+Model Training and Comparison
+
+Trains and compares multiple machine learning models
+for invoice fraud detection.
+"""
+
 import joblib
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import(accuracy_score,precision_score,recall_score,f1_score)
 
-#
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+    ExtraTreesClassifier
+)
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
+)
+
+
+# 
 # Load Dataset
 # 
+
 def load_dataset():
+
     print("Loading the ML dataset...")
 
-    df=pd.read_csv("data/processed/ml_dataset.csv")
+    df = pd.read_csv(
+        "data/processed/ml_dataset.csv"
+    )
 
     return df
 
-#
-#Split features and target
-#
 
-'''
-Machine learning models require:
-    X : Input features (everything the model learns from).
-    y : Target label (what the model should predict).
-Here, fraud is the label, so it is separated from the rest of the dataset.
-'''
+# 
+# Split Features and Target
+# 
 
 def split_features_target(df):
-    print("Splitting featues amd Target...")
 
-    X = df.drop(columns=["fraud","risk_score","risk_severity"])      #removing fraud, risk_score and risk_severity columns from training
-    y = df["fraud"]                     #keeping only the fraud column for testing
+    print("Splitting Features and Target...")
 
-    return X,y
+    X = df.drop(
+        columns=[
+            "fraud",
+            "risk_score",
+            "risk_severity"
+        ]
+    )
 
-#
-# Train and Test Slpit
-#
-'''
-The dataset is divided into:
+    y = df["fraud"]
 
-    80% Training Data : Used to teach the model.
-    20% Testing Data : Used to evaluate how well the model performs on unseen invoices.
+    return X, y
 
-Using stratify=y ensures that the proportion of fraudulent and genuine invoices remains the same in both training and testing sets.
-'''
 
-def split_dataset(X,y):
+# 
+# Train/Test Split
+# 
+
+def split_dataset(X, y):
+
     print("Creating Train/Test Split...")
 
-    X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.2,random_state=42,stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+
+        X,
+        y,
+
+        test_size=0.2,
+
+        random_state=42,
+
+        stratify=y
+
+    )
 
     return X_train, X_test, y_train, y_test
 
 
-#
-# Random Forest (Training)
-#
+# 
+# Compare Multiple Models
+# 
 
-'''
-This function creates and trains a Random Forest Classifier using the training dataset.
+def compare_models(
+    X_train,
+    X_test,
+    y_train,
+    y_test
+):
 
-A Random Forest builds many decision trees and combines their predictions. This usually gives better accuracy and reduces overfitting compared to a single Decision Tree.
-'''
+    print("\nComparing Models...")
 
-def train_random_forest(X_train, y_train):
-    print("Training Random forest Model...")
+    models = {
 
-    model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        "Logistic Regression": LogisticRegression(
+            max_iter=1000,
+            random_state=42
+        ),
 
-    model.fit(X_train, y_train)
+        "Decision Tree": DecisionTreeClassifier(
+            random_state=42
+        ),
 
-    return model
+        "Random Forest": RandomForestClassifier(
+            n_estimators=100,
+            random_state=42,
+            n_jobs=-1
+        ),
 
-#
-# Evaluate Model
-#
+        "Gradient Boosting": GradientBoostingClassifier(
+            random_state=42
+        ),
 
-def evaluate_model(model,X_test,y_test):
-    print("Evaluating Model...")
-    predictions = model.predict(X_test)
-    accuracy = accuracy_score(y_test,predictions)
-    precision=precision_score(y_test, predictions)
-    recall = recall_score(y_test,predictions)
-    f1=f1_score(y_test,predictions)
+        "Extra Trees": ExtraTreesClassifier(
+            n_estimators=100,
+            random_state=42,
+            n_jobs=-1
+        )
+
+    }
+
+    results = []
+
+    for name, model in models.items():
+
+        print(f"\nTraining {name}...")
+
+        model.fit(
+            X_train,
+            y_train
+        )
+
+        predictions = model.predict(
+            X_test
+        )
+
+        accuracy = accuracy_score(
+            y_test,
+            predictions
+        )
+
+        precision = precision_score(
+            y_test,
+            predictions
+        )
+
+        recall = recall_score(
+            y_test,
+            predictions
+        )
+
+        f1 = f1_score(
+            y_test,
+            predictions
+        )
+
+        results.append({
+
+            "Model": name,
+
+            "Accuracy": accuracy,
+
+            "Precision": precision,
+
+            "Recall": recall,
+
+            "F1": f1
+
+        })
+
+    results_df = pd.DataFrame(
+        results
+    )
+
+    results_df = results_df.sort_values(
+        by="F1",
+        ascending=False
+    )
+
+    print(
+        "\n------ MODEL COMPARISON ------"
+    )
+
+    print(
+        results_df.to_string(
+            index=False
+        )
+    )
+
+    return results_df, models
 
 
-    print("\n----- MODEL PERFORMANCE -----")
+# 
+# Save Best Model
+# 
 
-    print(f"Accuracy : {accuracy:.4f}")
+def save_best_model(
+    results_df,
+    models
+):
 
-    print(f"Precision: {precision:.4f}")
+    best_model_name = results_df.iloc[0]["Model"]
 
-    print(f"Recall   : {recall:.4f}")
+    best_model = models[
+        best_model_name
+    ]
 
-    print(f"F1 Score : {f1:.4f}")
+    print(
+        f"\nBest Model: {best_model_name}"
+    )
 
-    return model
+    joblib.dump(
+        best_model,
+        "models/best_model.pkl"
+    )
+
+    print(
+        "Best Model Saved Successfully!"
+    )
 
 
-#
-# Save Model
-#
-'''
-After training, we save the model so we don't have to retrain it every time we want to make a prediction.
 
-The saved model (fraud_model.pkl) will later be loaded by predict.py to classify new invoices.
-'''
-def save_model(model):
 
-    print("\nSaving Model...")
-
-    joblib.dump(model,"models/fraud_model.pkl")
-
-    print("Model Saved Successfully!")
-
-#Test
 if __name__ == "__main__":
 
     df = load_dataset()
 
-    X, y = split_features_target(df)
+    X, y = split_features_target(
+        df
+    )
 
-    X_train, X_test, y_train, y_test = split_dataset(X, y)
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y
+    )
 
-    model = train_random_forest(X_train,y_train)
+    results_df, models = compare_models(
+        X_train,
+        X_test,
+        y_train,
+        y_test
+    )
 
-    evaluate_model(model,X_test,y_test)
-
-    save_model(model)
+    save_best_model(
+        results_df,
+        models
+    )

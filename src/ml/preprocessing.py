@@ -134,8 +134,7 @@ def save_feature_columns(df, path):
 
     print("Saving Feature Columns...")
 
-    feature_columns = df.columns.tolist()
-
+    feature_columns = df.drop(columns = ["fraud","risk_score","risk_severity"],errors="ignore").columns.tolist()
     joblib.dump(feature_columns, path)
 
 
